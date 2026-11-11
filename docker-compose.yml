@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ph_db
+    environment:
+      POSTGRES_USER: ph_user
+      POSTGRES_PASSWORD: ph_pass
+      POSTGRES_DB: ph_gestion
+    ports:
+      - "5432:5432"
+    volumes:
+      - ph_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ph_user -d ph_gestion"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    container_name: ph_api
+    environment:
+      DATABASE_URL: postgres://ph_user:ph_pass@db:5432/ph_gestion
+      PORT: 4000
+      JWT_SECRET: examen-pruebas-2026
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    container_name: ph_web
+    environment:
+      VITE_API_URL: http://localhost:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  ph_data:
