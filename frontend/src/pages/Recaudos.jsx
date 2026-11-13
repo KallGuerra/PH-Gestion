@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, money } from "../api.js";
 
+const soloNumeros = (v) => v.replace(/\D/g, "");
+
 export default function Recaudos() {
   const [recaudos, setRecaudos] = useState([]);
   const [inmuebleId, setInmuebleId] = useState("");
@@ -41,8 +43,8 @@ export default function Recaudos() {
       <div className="panel">
         <h3>Registrar recaudo</h3>
         <form className="row" onSubmit={registrar}>
-          <div className="field"><label>ID inmueble</label><input value={inmuebleId} onChange={(e) => setInmuebleId(e.target.value)} placeholder="ej. 4" /></div>
-          <div className="field"><label>Valor</label><input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="ej. 250000" /></div>
+          <div className="field"><label>ID inmueble</label><input value={inmuebleId} inputMode="numeric" onChange={(e) => setInmuebleId(soloNumeros(e.target.value))} placeholder="ej. 4" /></div>
+          <div className="field"><label>Valor</label><input value={valor} inputMode="numeric" onChange={(e) => setValor(soloNumeros(e.target.value))} placeholder="ej. 250000" /></div>
           <div className="field"><label>Medio</label>
             <select value={medio} onChange={(e) => setMedio(e.target.value)}>
               <option>Transferencia</option><option>Consignación</option><option>Efectivo</option><option>PSE</option>
