@@ -25,7 +25,12 @@ export async function api(path, options = {}) {
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  
+  if (!res.ok) {
+    const err = new Error(data.error || `Error ${res.status}`);
+    err.errores = data.errores || {}; // mensajes por campo, si el backend los envía
+    throw err;
+  }
   return data;
 }
 
