@@ -42,18 +42,30 @@ router.post("/", requireRol("admin_copropiedad", "contador", "superadmin"), asyn
   const condominioId = condominioDeLaPeticion(req);
   const { inmueble_id, fecha, medio, valor } = req.body || {};
   if (!inmueble_id || !valor) {
-    return res.status(400).json({ error: "inmueble_id y valor son obligatorios" });
+    return res.status(400).json({ error: "se deben ingresar los datos validos del recaudo" });
   }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
+    // El inmueble tiene que existir y pertenecer a la copropiedad de la petición
+    // (el superadmin sin copropiedad seleccionada puede usar cualquiera).
+    const inm = await client.query(
+      `SELECT id, condominio_id FROM inmueble
+        WHERE id = $1 AND ($2::int IS NULL OR condominio_id = $2)`,
+      [inmueble_id, condominioId ?? null]
+    );
+    if (!inm.rows[0]) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "El inmueble no existe en esta copropiedad" });
+    }
+
     const pago = await client.query(
       `INSERT INTO pago (condominio_id, inmueble_id, fecha, medio, valor)
        VALUES ($1, $2, COALESCE($3, CURRENT_DATE), COALESCE($4,'Transferencia'), $5)
        RETURNING id`,
-      [condominioId, inmueble_id, fecha || null, medio || null, valor]
+      [inm.rows[0].condominio_id, inmueble_id, fecha || null, medio || null, valor]
     );
     const pagoId = pago.rows[0].id;
 
