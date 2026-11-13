@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { query } from "../lib/db.js";
-import { authRequired, condominioDeLaPeticion } from "../lib/auth.js";
+import { authRequired, condominioDeLaPeticion, requireRol, ROLES_GESTION } from "../lib/auth.js";
 
 const router = Router();
-router.use(authRequired);
+router.use(authRequired, requireRol(...ROLES_GESTION));
 
 // Totales de facturación por periodo.
 router.get("/totales-facturacion", async (req, res) => {

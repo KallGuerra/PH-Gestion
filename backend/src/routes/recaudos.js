@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { query, pool } from "../lib/db.js";
-import { authRequired, condominioDeLaPeticion, requireRol } from "../lib/auth.js";
+import { authRequired, condominioDeLaPeticion, requireRol, ROLES_GESTION } from "../lib/auth.js";
 import { estadoPorSaldo } from "../lib/finance.js";
 
 const router = Router();
-router.use(authRequired);
+router.use(authRequired, requireRol(...ROLES_GESTION));
 
 // Listado de recaudos.
 router.get("/", async (req, res) => {

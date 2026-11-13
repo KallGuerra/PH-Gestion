@@ -1,15 +1,42 @@
 import { Router } from "express";
 import { query, pool } from "../lib/db.js";
-import { authRequired, condominioDeLaPeticion, requireRol } from "../lib/auth.js";
+import { authRequired, condominioDeLaPeticion, requireRol, ROLES_GESTION } from "../lib/auth.js";
 
 const router = Router();
-router.use(authRequired);
+router.use(authRequired, requireRol(...ROLES_GESTION));
 
 // Fecha de vencimiento: día 10 del mes siguiente al periodo (YYYY-MM).
 function vencimientoDe(periodo) {
   const [y, m] = periodo.split("-").map(Number);
   const siguiente = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   return `${siguiente}-10`;
+}
+
+// Valida los datos de la facturación masiva y devuelve un mensaje por campo
+// indicando qué debe corregirse. Objeto vacío = datos válidos.
+function validarMasiva({ periodo, concepto_id }) {
+  const errores = {};
+
+  const cid = String(concepto_id ?? "").trim();
+  if (cid === "" || concepto_id === null) {
+    errores.concepto_id = "Concepto (id): el campo es obligatorio. Ingrese el id numérico del concepto (ej. 3).";
+  } else if (!/^\d+$/.test(cid) || Number(cid) < 1) {
+    errores.concepto_id = `Concepto (id): "${cid}" no es válido. Debe ser un número entero mayor que 0, sin letras ni símbolos (ej. 3).`;
+  }
+
+  const per = String(periodo ?? "").trim();
+  if (per === "") {
+    errores.periodo = "Periodo: el campo es obligatorio. Ingrese año y mes con el formato AAAA-MM (ej. 2026-12).";
+  } else if (!/^\d{4}-\d{2}$/.test(per)) {
+    errores.periodo = `Periodo: "${per}" no tiene el formato correcto. Use AAAA-MM, con guion y mes de dos dígitos (ej. 2026-12).`;
+  } else {
+    const mes = Number(per.slice(5, 7));
+    if (mes < 1 || mes > 12) {
+      errores.periodo = `Periodo: el mes "${per.slice(5, 7)}" no existe. Debe estar entre 01 y 12 (ej. 2026-12).`;
+    }
+  }
+
+  return errores;
 }
 
 // Listado de facturas de un periodo.
@@ -37,15 +64,19 @@ router.post(
   async (req, res) => {
     const condominioId = condominioDeLaPeticion(req);
     const { periodo, concepto_id } = req.body || {};
-    if (!periodo || !concepto_id) {
-      return res.status(400).json({ error: "periodo y concepto_id son obligatorios" });
+    const errores = validarMasiva({ periodo, concepto_id });
+    if (Object.keys(errores).length) {
+      return res.status(400).json({ error: Object.values(errores).join(" "), errores });
     }
 
     const cpt = await query(
       "SELECT * FROM concepto WHERE id = $1 AND condominio_id = $2",
-      [concepto_id, condominioId]
+      [Number(concepto_id), condominioId]
     );
-    if (!cpt.rows[0]) return res.status(404).json({ error: "Concepto no encontrado" });
+    if (!cpt.rows[0]) {
+      const msg = `Concepto (id): no existe un concepto con id ${concepto_id} en esta copropiedad. Verifique el id del concepto.`;
+      return res.status(404).json({ error: msg, errores: { concepto_id: msg } });
+    }
     const concepto = cpt.rows[0];
     const totalARepartir = Number(concepto.valor_base);
 
@@ -54,7 +85,7 @@ router.post(
       [condominioId]
     );
 
-    const vencimiento = vencimientoDe(periodo);
+    const vencimiento = vencimientoDe(String(periodo).trim());
     const client = await pool.connect();
     const creadas = [];
     try {
@@ -67,7 +98,7 @@ router.post(
                                 fecha_vencimiento, subtotal, total, saldo, estado)
            VALUES ($1,$2,$3, CURRENT_DATE, $4, $5, $5, $5, 'Pendiente')
            RETURNING id, inmueble_id, total`,
-          [condominioId, inm.id, periodo, vencimiento, valor]
+          [condominioId, inm.id, String(periodo).trim(), vencimiento, valor]
         );
         await client.query(
           `INSERT INTO factura_detalle (factura_id, concepto_id, descripcion, valor)

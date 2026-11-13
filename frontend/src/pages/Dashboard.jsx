@@ -51,7 +51,7 @@ export default function Dashboard() {
         </div>
         <div className="kpi">
           <div className="label">Total ingresos del periodo</div>
-          <div className="value">{"$ " + totalIngresos}</div>
+          <div className="value">{money(data.totalIngresos)}</div>
         </div>
       </div>
 

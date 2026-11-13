@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { query } from "../lib/db.js";
-import { authRequired, condominioDeLaPeticion } from "../lib/auth.js";
+import { authRequired, condominioDeLaPeticion, requireRol, ROLES_GESTION } from "../lib/auth.js";
 import { diasEntre, estaEnMora } from "../lib/finance.js";
 
 const router = Router();
-router.use(authRequired);
+router.use(authRequired, requireRol(...ROLES_GESTION));
 
 // Cartera por inmueble (saldos pendientes).
 router.get("/", async (req, res) => {
