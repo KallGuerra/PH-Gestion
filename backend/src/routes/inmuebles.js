@@ -9,9 +9,9 @@ router.use(authRequired);
 // Listado de inmuebles de la copropiedad (paginado).
 router.get("/", async (req, res) => {
   const condominioId = condominioDeLaPeticion(req);
-  const page = Number(req.query.page || 1);
-  const limit = Number(req.query.limit || 10);
-  const offset = page * limit;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+  const offset = (page - 1) * limit;
 
   const { rows } = await query(
     `SELECT i.id, i.identificacion, i.torre, i.piso, i.tipo, i.area,
@@ -20,9 +20,10 @@ router.get("/", async (req, res) => {
        FROM inmueble i
        LEFT JOIN persona p ON p.id = i.propietario_id
        LEFT JOIN persona r ON r.id = i.residente_id
+      WHERE i.condominio_id = $3
       ORDER BY i.id
       LIMIT $1 OFFSET $2`,
-    [limit, offset]
+    [limit, offset, condominioId]
   );
 
   const total = await query("SELECT COUNT(*)::int AS n FROM inmueble WHERE condominio_id = $1", [condominioId]);
