@@ -37,6 +37,23 @@ export function condominioDeLaPeticion(req) {
   return req.user.condominio_id;
 }
 
+// Roles con acceso a la información global de la copropiedad.
+export const ROLES_GESTION = ["superadmin", "admin_copropiedad", "contador"];
+
+// Propietarios y residentes solo pueden ver los inmuebles a los que están vinculados.
+export function esUsuarioFinal(req) {
+  return req.user.rol === "propietario" || req.user.rol === "residente";
+}
+
+// Fragmento SQL que restringe los inmuebles (alias `alias`) a los del usuario final.
+// Agrega el parámetro a `params` y devuelve "" para los roles de gestión.
+export function filtroInmueblesDelUsuario(req, alias, params) {
+  if (!esUsuarioFinal(req)) return "";
+  params.push(req.user.persona_id ?? -1);
+  const col = req.user.rol === "propietario" ? "propietario_id" : "residente_id";
+  return ` AND ${alias}.${col} = $${params.length}`;
+}
+
 export function requireRol(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.user.rol)) {

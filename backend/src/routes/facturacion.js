@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { query, pool } from "../lib/db.js";
-import { authRequired, condominioDeLaPeticion, requireRol } from "../lib/auth.js";
+import { authRequired, condominioDeLaPeticion, requireRol, ROLES_GESTION } from "../lib/auth.js";
 
 const router = Router();
-router.use(authRequired);
+router.use(authRequired, requireRol(...ROLES_GESTION));
 
 // Fecha de vencimiento: día 10 del mes siguiente al periodo (YYYY-MM).
 function vencimientoDe(periodo) {
